@@ -24,6 +24,18 @@ module CryptKeeper
       end
     end
 
+    def keys_for_partial_write
+      changed | fields_for_serialization_updates
+    end
+
+    def should_record_timestamps?
+      self.record_timestamps && (!partial_writes? || changed?) || (attributes.keys & fields_for_serialization_updates).present?
+    end
+
+    def fields_for_serialization_updates
+      self.class.serialized_attributes.keys - self.class.crypt_keeper_fields.map(&:to_s)
+    end
+
     module ClassMethods
       # Public: Setup fields for encryption
       #
