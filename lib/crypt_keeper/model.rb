@@ -24,15 +24,6 @@ module CryptKeeper
       end
     end
 
-    # Private: Force string encodings if the option is set
-    def force_encodings_on_fields
-      crypt_keeper_fields.each do |field|
-        if attributes.has_key?(field.to_s) && send(field).respond_to?(:force_encoding)
-          send(field).force_encoding(crypt_keeper_encoding)
-        end
-      end
-    end
-
     module ClassMethods
       # Public: Setup fields for encryption
       #
@@ -62,14 +53,34 @@ module CryptKeeper
 
         before_save :enforce_column_types_callback
 
-        if self.crypt_keeper_encoding
-          after_find :force_encodings_on_fields
-          before_save :force_encodings_on_fields
-        end
-
         crypt_keeper_fields.each do |field|
-          serialize field, encryptor_klass.new(crypt_keeper_options).
-            extend(::CryptKeeper::Helper::Serializer)
+          define_method field do
+            if read_attribute(field).blank?
+              return read_attribute(field)
+            end
+
+            value = self.class.send(:encryptor_klass).new(crypt_keeper_options).decrypt(read_attribute(field))
+
+            if self.class.crypt_keeper_encoding.present? && value.respond_to?(:force_encoding)
+              value.force_encoding(self.class.crypt_keeper_encoding)
+            end
+
+            value
+          end
+
+          define_method "#{field}=" do |value|
+            if value.blank?
+              return value
+            end
+
+            value = value.to_s
+
+            if self.class.crypt_keeper_encoding.present? && value.respond_to?(:force_encoding)
+              value.force_encoding(self.class.crypt_keeper_encoding)
+            end
+
+            write_attribute(field, self.class.send(:encryptor_klass).new(crypt_keeper_options).encrypt(value.to_s))
+          end
         end
       end
 

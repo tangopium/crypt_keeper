@@ -70,7 +70,7 @@ module CryptKeeper
 
       it "does not encrypt or decrypt empty strings" do
         data = subject.create!(storage: "")
-        data.storage.should be_empty
+        data.storage.should be_nil
       end
 
       it "converts numbers to strings" do
